@@ -1,18 +1,20 @@
 #include <alsa/asoundlib.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
+#include <unistd.h>
 
 //As funções do ALSA costumam retornar valores negativos para indicar falhas de execução. Este #define permite encapsular as chamadas de função em uma estrutura que verifica esse retorno e
 //exibe uma mensagem de erro  
 #define CHK(stmt, msg) if((stmt) < 0) {puts("ERROR: "#msg); exit(1);}
 
+#define note_time 1000000
+
 //Abre o ALSA Sequencer para entrada e saida e cria uma porta para cada função
-int open_client(snd_seq_t** handle, int* port_id){
+int open_client(snd_seq_t** handle, int* in_port_id, int* out_port_id){
 	CHK(snd_seq_open(handle, "default", SND_SEQ_OPEN_DUPLEX, 0), "Could not open sequencer");
 	CHK(snd_seq_set_client_name(*handle, "Talker Client"), "Could not set client name");
-	CHK(*port_id = snd_seq_create_simple_port(*handle, "O-port", SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ, SND_SEQ_PORT_TYPE_APPLICATION), "Could not open port");
-	CHK(*port_id = snd_seq_create_simple_port(*handle, "I-port", SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE, SND_SEQ_PORT_TYPE_APPLICATION), "Could not open port");
+	CHK(*out_port_id = snd_seq_create_simple_port(*handle, "O-port", SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ, SND_SEQ_PORT_TYPE_APPLICATION), "Could not open port");
+	CHK(*in_port_id = snd_seq_create_simple_port(*handle, "I-port", SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE, SND_SEQ_PORT_TYPE_APPLICATION), "Could not open port");
 	return 0;
 }
 
@@ -24,226 +26,255 @@ snd_seq_event_t *midi_read(snd_seq_t* seq_handle)
 	return ev;
 }
 
-int translate(snd_seq_event_t* ev, snd_seq_t* handle){
+void gen_note(snd_seq_event_t* ev, unsigned char vel, unsigned char note, snd_seq_t* handle){
+	snd_seq_ev_set_noteon(ev, 0, note, vel);
+	snd_seq_event_output(handle, ev);
+	snd_seq_drain_output(handle);
+
+	usleep(note_time);
+
+	snd_seq_ev_set_noteoff(ev, 0, note, 0);
+	snd_seq_event_output(handle, ev);
+	snd_seq_drain_output(handle);
+
+	//usleep(note_time/6);
+	printf("Event sent\n");
+}
+
+int translate(snd_seq_event_t* ev, snd_seq_t* handle, unsigned char vel[]){ 	
 	if(ev->type != SND_SEQ_EVENT_CONTROLLER){
 		printf("ERROR: Event is not a controller\n");
 		return 1;
 	}
-	//snd_seq_event_t* out_ev;
+	snd_seq_event_t out_ev;
+	snd_seq_ev_clear(&out_ev);
+	snd_seq_ev_set_source(&out_ev, 0);
+	snd_seq_ev_set_subs(&out_ev);
+	snd_seq_ev_set_direct(&out_ev);
+	
 	switch(ev->data.control.param){
-		case (char)58:
+		case 58:
 			printf("ctrl: %d\n", ev->data.control.param); 
 		break;
 
-		case (char)46:
+		case 46:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 
-		case (char)43:
+		case 43:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 		
-		case (char)59:
+		case 59:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 		
-		case (char)44:
+		case 44:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 
-		case (char)60:
+		case 60:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 		
-		case (char)42:
+		case 42:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 
-		case (char)61:
+		case 61:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 
-		case (char)41:
+		case 41:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 
-		case (char)62:
+		case 62:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 
-		case (char)45:
+		case 45:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 
-		case (char)32:
+		case 32:
+			gen_note(&out_ev, vel[0], 60, handle);
+
+		break;
+
+		case 48:
+			gen_note(&out_ev, vel[0], 61, handle);
+		break;
+
+		case 64:
+			gen_note(&out_ev, vel[0], 62, handle);
+		break;
+
+		case 16:
+			vel[0] = (unsigned char) ev->data.control.value;
+		break;
+
+		case 0:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 
-		case (char)48:
+		case 33:
+			gen_note(&out_ev, vel[1], 63, handle);
+		break;
+
+		case 49:
+			gen_note(&out_ev, vel[1], 64, handle);
+		break;
+
+		case 65:
+			gen_note(&out_ev, vel[1], 65, handle);
+		break;
+
+		case 17:
+			vel[1] = (unsigned char) ev->data.control.value;
+		break;
+
+		case 1:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 
-		case (char)64:
+		case 34:
+			gen_note(&out_ev, vel[2], 66, handle);
+		break;
+
+		case 50:
+			gen_note(&out_ev, vel[2], 67, handle);
+		break;
+
+		case 66:
+			gen_note(&out_ev, vel[2], 68, handle);
+		break;
+
+		case 18:
+			vel[2] = (unsigned char) ev->data.control.value;
+		break;
+
+		case 2:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 
-		case (char)16:
+		case 35:
+			gen_note(&out_ev, vel[3], 69, handle);
+		break;
+
+		case 51:
+			gen_note(&out_ev, vel[3], 70, handle);
+		break;
+
+		case 67:
+			gen_note(&out_ev, vel[3], 71, handle);
+		break;
+
+		case 19:
+			vel[3] = (unsigned char) ev->data.control.value;
+		break;
+
+		case 3:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 
-		case (char)0:
+		case 36:
+			gen_note(&out_ev, vel[4], 72, handle);
+		break;
+
+		case 52:
+			gen_note(&out_ev, vel[4], 73, handle);
+		break;
+
+		case 68:
+			gen_note(&out_ev, vel[4], 74, handle);
+		break;
+
+		case 20:
+			vel[4] = (unsigned char) ev->data.control.value;
+		break;
+
+		case 4:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 
-		case (char)33:
+		case 37:
+			gen_note(&out_ev, vel[5], 75, handle);
+		break;
+
+		case 53:
+			gen_note(&out_ev, vel[5], 76, handle);
+		break;
+
+		case 69:
+			gen_note(&out_ev, vel[5], 77, handle);
+		break;
+
+		case 21:
+			vel[5] = (unsigned char) ev->data.control.value;
+		break;
+
+		case 5:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 
-		case (char)49:
+		case 38:
+			gen_note(&out_ev, vel[6], 78, handle);
+		break;
+
+		case 54:
+			gen_note(&out_ev, vel[6], 79, handle);
+		break;
+
+		case 70:
+			gen_note(&out_ev, vel[6], 80, handle);
+		break;
+
+		case 22:
+			vel[6] = (unsigned char) ev->data.control.value;
+		break;
+
+		case 6:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 
-		case (char)65:
+		case 39:
+			gen_note(&out_ev, vel[7], 81, handle);
+		break;
+
+		case 55:
+			gen_note(&out_ev, vel[7], 82, handle);
+		break;
+
+		case 71:
+			gen_note(&out_ev, vel[7], 83, handle);
+		break;
+
+		case 23:
+			vel[7] = (unsigned char) ev->data.control.value;
+		break;
+
+		case 7:
 			printf("ctrl: %d\n", ev->data.control.param);
 		break;
 
-		case (char)17:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)1:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)34:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)50:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)66:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)18:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)2:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)35:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)51:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)67:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)19:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)3:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)36:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)52:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)68:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)20:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)4:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)37:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)53:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)69:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)21:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)5:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)38:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)54:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)70:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)22:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)6:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)39:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)55:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)71:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)23:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
-
-		case (char)7:
-			printf("ctrl: %d\n", ev->data.control.param);
-		break;
+		default:
+			printf("Unknow controller\n");
 	}		
 	return 0;
 }
 
 int main(void){
 	snd_seq_t* handle;
-	int id;
-	open_client(&handle, &id);
+	int id_in, id_out;
+	unsigned char vel[8];
+	int i;
+	for(i=0; i < 8; i++){
+		vel[i] = 0;
+	}
+	open_client(&handle, &id_in, &id_out);
 	while(1){
-		translate(midi_read(handle), handle); 
+		translate(midi_read(handle), handle, vel); 
 	}
 	return 0;
 }
