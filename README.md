@@ -1,1 +1,1 @@
-Criando o README
+This repository is related to my scientific recearch oriented by the professor Flávio Schiavoni in the Federal University of São João Del Rei (UFSJ) about aplications of the Computer Science in the artistic área.
