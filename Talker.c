@@ -7,8 +7,6 @@
 //exibe uma mensagem de erro  
 #define CHK(stmt, msg) if((stmt) < 0) {puts("ERROR: "#msg); exit(1);}
 
-#define note_time 1000000
-
 //Abre o ALSA Sequencer para entrada e saida e cria uma porta para cada função
 int open_client(snd_seq_t** handle, int* in_port_id, int* out_port_id){
 	CHK(snd_seq_open(handle, "default", SND_SEQ_OPEN_DUPLEX, 0), "Could not open sequencer");
@@ -26,19 +24,11 @@ snd_seq_event_t *midi_read(snd_seq_t* seq_handle)
 	return ev;
 }
 
-void gen_note(snd_seq_event_t* ev, unsigned char vel, unsigned char note, snd_seq_t* handle){
-	snd_seq_ev_set_noteon(ev, 0, note, vel);
-	snd_seq_event_output(handle, ev);
-	snd_seq_drain_output(handle);
-
-	usleep(note_time);
-
-	snd_seq_ev_set_noteoff(ev, 0, note, 0);
-	snd_seq_event_output(handle, ev);
-	snd_seq_drain_output(handle);
-
-	//usleep(note_time/6);
-	printf("Event sent\n");
+void set_note(snd_seq_event_t* ev, unsigned char vel, unsigned char note, snd_seq_t* handle){
+		ev->data.note.channel = 0;
+		ev->data.note.note = note;
+		if(ev->type == SND_SEQ_EVENT_NOTEOFF) ev->data.note.velocity = 0;
+		else ev->data.note.velocity = vel;
 }
 
 int translate(snd_seq_event_t* ev, snd_seq_t* handle, unsigned char vel[]){ 	
@@ -51,6 +41,9 @@ int translate(snd_seq_event_t* ev, snd_seq_t* handle, unsigned char vel[]){
 	snd_seq_ev_set_source(&out_ev, 0);
 	snd_seq_ev_set_subs(&out_ev);
 	snd_seq_ev_set_direct(&out_ev);
+	snd_seq_ev_set_fixed(&out_ev);
+	if(ev->data.control.value == 0) out_ev.type = SND_SEQ_EVENT_NOTEOFF;
+	else out_ev.type = SND_SEQ_EVENT_NOTEON;
 	
 	switch(ev->data.control.param){
 		case 58:
@@ -98,16 +91,15 @@ int translate(snd_seq_event_t* ev, snd_seq_t* handle, unsigned char vel[]){
 		break;
 
 		case 32:
-			gen_note(&out_ev, vel[0], 60, handle);
-
+			set_note(&out_ev, vel[0], 60, handle);
 		break;
 
 		case 48:
-			gen_note(&out_ev, vel[0], 61, handle);
+			set_note(&out_ev, vel[0], 61, handle);
 		break;
 
 		case 64:
-			gen_note(&out_ev, vel[0], 62, handle);
+			set_note(&out_ev, vel[0], 62, handle);
 		break;
 
 		case 16:
@@ -119,15 +111,15 @@ int translate(snd_seq_event_t* ev, snd_seq_t* handle, unsigned char vel[]){
 		break;
 
 		case 33:
-			gen_note(&out_ev, vel[1], 63, handle);
+			set_note(&out_ev, vel[1], 63, handle);
 		break;
 
 		case 49:
-			gen_note(&out_ev, vel[1], 64, handle);
+			set_note(&out_ev, vel[1], 64, handle);
 		break;
 
 		case 65:
-			gen_note(&out_ev, vel[1], 65, handle);
+			set_note(&out_ev, vel[1], 65, handle);
 		break;
 
 		case 17:
@@ -139,15 +131,15 @@ int translate(snd_seq_event_t* ev, snd_seq_t* handle, unsigned char vel[]){
 		break;
 
 		case 34:
-			gen_note(&out_ev, vel[2], 66, handle);
+			set_note(&out_ev, vel[2], 66, handle);
 		break;
 
 		case 50:
-			gen_note(&out_ev, vel[2], 67, handle);
+			set_note(&out_ev, vel[2], 67, handle);
 		break;
 
 		case 66:
-			gen_note(&out_ev, vel[2], 68, handle);
+			set_note(&out_ev, vel[2], 68, handle);
 		break;
 
 		case 18:
@@ -159,15 +151,15 @@ int translate(snd_seq_event_t* ev, snd_seq_t* handle, unsigned char vel[]){
 		break;
 
 		case 35:
-			gen_note(&out_ev, vel[3], 69, handle);
+			set_note(&out_ev, vel[3], 69, handle);
 		break;
 
 		case 51:
-			gen_note(&out_ev, vel[3], 70, handle);
+			set_note(&out_ev, vel[3], 70, handle);
 		break;
 
 		case 67:
-			gen_note(&out_ev, vel[3], 71, handle);
+			set_note(&out_ev, vel[3], 71, handle);
 		break;
 
 		case 19:
@@ -179,15 +171,15 @@ int translate(snd_seq_event_t* ev, snd_seq_t* handle, unsigned char vel[]){
 		break;
 
 		case 36:
-			gen_note(&out_ev, vel[4], 72, handle);
+			set_note(&out_ev, vel[4], 72, handle);
 		break;
 
 		case 52:
-			gen_note(&out_ev, vel[4], 73, handle);
+			set_note(&out_ev, vel[4], 73, handle);
 		break;
 
 		case 68:
-			gen_note(&out_ev, vel[4], 74, handle);
+			set_note(&out_ev, vel[4], 74, handle);
 		break;
 
 		case 20:
@@ -199,15 +191,15 @@ int translate(snd_seq_event_t* ev, snd_seq_t* handle, unsigned char vel[]){
 		break;
 
 		case 37:
-			gen_note(&out_ev, vel[5], 75, handle);
+			set_note(&out_ev, vel[5], 75, handle);
 		break;
 
 		case 53:
-			gen_note(&out_ev, vel[5], 76, handle);
+			set_note(&out_ev, vel[5], 76, handle);
 		break;
 
 		case 69:
-			gen_note(&out_ev, vel[5], 77, handle);
+			set_note(&out_ev, vel[5], 77, handle);
 		break;
 
 		case 21:
@@ -219,15 +211,15 @@ int translate(snd_seq_event_t* ev, snd_seq_t* handle, unsigned char vel[]){
 		break;
 
 		case 38:
-			gen_note(&out_ev, vel[6], 78, handle);
+			set_note(&out_ev, vel[6], 78, handle);
 		break;
 
 		case 54:
-			gen_note(&out_ev, vel[6], 79, handle);
+			set_note(&out_ev, vel[6], 79, handle);
 		break;
 
 		case 70:
-			gen_note(&out_ev, vel[6], 80, handle);
+			set_note(&out_ev, vel[6], 80, handle);
 		break;
 
 		case 22:
@@ -239,15 +231,15 @@ int translate(snd_seq_event_t* ev, snd_seq_t* handle, unsigned char vel[]){
 		break;
 
 		case 39:
-			gen_note(&out_ev, vel[7], 81, handle);
+			set_note(&out_ev, vel[7], 81, handle);
 		break;
 
 		case 55:
-			gen_note(&out_ev, vel[7], 82, handle);
+			set_note(&out_ev, vel[7], 82, handle);
 		break;
 
 		case 71:
-			gen_note(&out_ev, vel[7], 83, handle);
+			set_note(&out_ev, vel[7], 83, handle);
 		break;
 
 		case 23:
@@ -260,7 +252,9 @@ int translate(snd_seq_event_t* ev, snd_seq_t* handle, unsigned char vel[]){
 
 		default:
 			printf("Unknow controller\n");
-	}		
+	}
+	snd_seq_event_output(handle, &out_ev);
+	snd_seq_drain_output(handle);		
 	return 0;
 }
 
