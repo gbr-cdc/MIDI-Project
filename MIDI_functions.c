@@ -67,6 +67,34 @@ void send_control(unsigned char param, unsigned char value, int channel, snd_seq
 	snd_seq_ev_set_subs(&out_ev);
 	snd_seq_ev_set_direct(&out_ev);
 	snd_seq_ev_set_fixed(&out_ev);
+
+	out_ev.type = SND_SEQ_EVENT_CONTROLLER;
+	
+	out_ev.data.control.param = param;
+	out_ev.data.control.value = value;
+	out_ev.data.control.channel = channel;
+//Os dois comandos abaixo são utilizados para fazer o envio do evento criado
+	snd_seq_event_output(handle, &out_ev);
+	snd_seq_drain_output(handle);
+}
+
+//Parâmetros de entrada
+//param: Parâmetro do controle, indentifica qual controle foi utilizado (0 - 127)
+//value: Valor do pitchbend. Varia entre -8192 e 8191.
+//channel: Canda de destino do evento (Nota: para as aplicações atuais o canal pode ser o 0)
+//handle: Handle do sequenciador
+//port_id: id da porta de origem.
+void send_pitchbend(unsigned char param, int value, int channel, snd_seq_t* handle, int port_id){
+//Declaração do evento de saida	
+	snd_seq_event_t out_ev;
+//Este trecho é necessário para preparar um evento para envio
+	snd_seq_ev_clear(&out_ev);
+	snd_seq_ev_set_source(&out_ev, port_id);
+	snd_seq_ev_set_subs(&out_ev);
+	snd_seq_ev_set_direct(&out_ev);
+	snd_seq_ev_set_fixed(&out_ev);
+
+	out_ev.type = SND_SEQ_EVENT_PITCHBEND;
 	
 	out_ev.data.control.param = param;
 	out_ev.data.control.value = value;
