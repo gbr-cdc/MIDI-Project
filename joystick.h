@@ -6,14 +6,21 @@
 #include <string.h>
 #include <time.h>
 #include <pthread.h>
+#include "MIDI_functions.c"
 
 //Estrutura que encapsula as informações sobre a entrada recebida da manete
 //to do: Eu acho que essa struct é redundante pois é a exata mesma struct js_event da biblioteca joystick.h
 typedef struct{
+	char* combo;
+	int* axis;
+	int* buttons;
 	unsigned int type; //JS_EVENT_BUTTON, JS_EVENT_AXIS ou JS_EVENT_INIT
 	unsigned int id; //Identifica qual botão/eixo foi acionado
 	int value; //1(pressionado) ou 0(solto) para botões, [-32767, +32767] para eixos
 	unsigned int time; //tempo em que o botão foi pressionado em milisegundos
+	snd_seq_t* handle;
+	int in_id;
+	int out_id;
 }t_mosaic_button_event;
 
 //Definição da assinatura da função callback de evento
@@ -40,6 +47,12 @@ typedef struct {
 
 //Thread que abre e gerencia as informações e entradas de cada manete
 void *joystick_thread(void *data){
+	//vetor que monitorará o estado atual dos eixos	
+	int* axis;
+	//vetor que monitorará o estado atual dos butões
+	int* buttons;	
+	//Variável auxiliar	
+	int i;
 	//Se uma função de callback não foi especificada a thread se encerra logo no início
 	if (((t_mosaic_device_data *)data)->event_callback_function == NULL){
 		pthread_exit((void *)NULL);
@@ -54,9 +67,14 @@ void *joystick_thread(void *data){
 	//A chamada abaixo informa o número de eixos da manete
 	char number_of_axes;
 	ioctl(fd, JSIOCGAXES, &number_of_axes);
+	//Inicialização do vetor de eixos	
+	axis = (int*)malloc((int)number_of_axes * sizeof(int));
+	for(i = 0; i < (int)number_of_axes; i++) axis[i] = 0;
 	//A chamada abaixo informa o número de botões da manete
 	char number_of_buttons;
 	ioctl(fd, JSIOCGBUTTONS, &number_of_buttons);
+	buttons = (int*)malloc((int)number_of_buttons * sizeof(int));
+	for(i = 0; i < number_of_buttons; i++) buttons[i] = 0;
 	//A chamada abaixo informa a versão do driver do dispositivo
 	int driver_version;
 	ioctl(fd,JSIOCGVERSION,&driver_version);
@@ -68,6 +86,11 @@ void *joystick_thread(void *data){
 			number_of_axes,
 			number_of_buttons,
 			driver_version);
+		
+	//Abre um cliente com o sequenciador MIDI
+	snd_seq_t* handle;
+	int in_id, out_id;
+	open_client(&handle, &in_id, &out_id);
 	//A partir daqui os eventos das entradas da manete começam a serem lidos
 	t_mosaic_button_event *btn_event = (t_mosaic_button_event *) malloc(sizeof(btn_event));
 	struct js_event msg;
@@ -78,17 +101,84 @@ void *joystick_thread(void *data){
 			printf("JOYSTICK INITIALAZING ERROR\n");			
 			pthread_exit((void *)NULL);
 		}
-	//O laço abaixo faz o tratamento dos eventos verdadeiros
-	}while(msg.type == JS_EVENT_INIT);	
+	}while(msg.type == JS_EVENT_INIT);
+	//Combo Buffer
+	char* cbuffer;
+	int ccount;
+	unsigned int time; 
+	cbuffer = (char*)malloc(128 * sizeof(char));
+	ccount = 0;
+	time = 0;
+	//O laço abaixo faz o tratamento dos eventos verdadeiros	
 	while(1) {
 		if(read(fd, &msg, sizeof(struct js_event)) != sizeof(struct js_event)){
 			printf("EVENT READING ERROR\n");			
 			pthread_exit((void *)NULL);
-		}	
+		}
+		//Atualização do estado do joystick
+		if(msg.type == JS_EVENT_AXIS) axis[msg.number] = msg.value;
+		if(msg.type == JS_EVENT_BUTTON) buttons[msg.number] = msg.value;		
+		//Tratamento de Combo
+		if((msg.type == JS_EVENT_AXIS) && ((msg.value == 32767) || (msg.value == -32767) || (msg.value == 0))){
+			if(ccount == 128) ccount = 0;
+			if((msg.time - time) > 500){
+				ccount = 0;
+			}			
+			time = msg.time;
+			cbuffer[ccount] = (msg.number/2) * 16;
+			if((msg.number % 2) != 0){
+				if(msg.value == -32767){
+					if(axis[msg.number - 1] == -32767) cbuffer[ccount] += 7; 
+					if(axis[msg.number - 1] == 0) cbuffer[ccount] += 8;
+					if(axis[msg.number - 1] == 32767) cbuffer[ccount] += 9;
+				}
+				if(msg.value == 32767){
+					if(axis[msg.number - 1] == -32767) cbuffer[ccount] += 1;
+					if(axis[msg.number - 1] == 0) cbuffer[ccount] += 2;
+					if(axis[msg.number - 1] == 32767) cbuffer[ccount] += 3;
+				}
+				if(msg.value == 0){
+					if(axis[msg.number - 1] == -32767) cbuffer[ccount] += 4;
+					if(axis[msg.number - 1] == 0) ccount--;
+					if(axis[msg.number - 1] == 32767) cbuffer[ccount] += 6;
+				}
+			}else{
+				if(msg.value == -32767){
+					if(axis[msg.number + 1] == -32767) cbuffer[ccount] +=  7; 
+					if(axis[msg.number + 1] == 0) cbuffer[ccount] += 4;
+					if(axis[msg.number + 1] == 32767) cbuffer[ccount] += 1;
+				}
+				if(msg.value == 32767){
+					if(axis[msg.number + 1] == -32767) cbuffer[ccount] += 9;
+					if(axis[msg.number + 1] == 0) cbuffer[ccount] += 6;
+					if(axis[msg.number + 1] == 32767) cbuffer[ccount] += 3;
+				}
+				if(msg.value == 0){
+					if(axis[msg.number + 1] == -32767) cbuffer[ccount] += 8;
+					if(axis[msg.number + 1] == 0) ccount--;
+					if(axis[msg.number + 1] == 32767) cbuffer[ccount] += 2;
+				}
+			}
+			ccount++;			
+		}
+		btn_event->combo = NULL;
+		if(msg.type == JS_EVENT_BUTTON && ccount > 0){			
+			if(ccount < 128){
+				cbuffer[ccount] = '\0';
+				btn_event->combo = cbuffer;
+			}
+			ccount = 0;
+		}
+		//Definição do btn_event
 		btn_event->type = msg.type;
 		btn_event->id = msg.number;
 		btn_event->value = msg.value;
 		btn_event->time = msg.time;
+		btn_event->handle = handle;
+		btn_event->in_id = in_id;
+		btn_event->out_id = out_id;
+		btn_event->axis = axis;
+		btn_event->buttons = buttons; 
 		//A chamada da função de callback para os eventos se encontra aqui
 		((t_mosaic_device_data *)data)->event_callback_function(btn_event);
 	}
@@ -109,5 +199,3 @@ void joystick_inicialize(const char * device,
 	pthread_t tid;
 	pthread_create(&tid, NULL, joystick_thread, data);
 }
-
-
