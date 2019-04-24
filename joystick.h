@@ -8,19 +8,18 @@
 #include <pthread.h>
 #include "MIDI_functions.c"
 
-//Estrutura que encapsula as informações sobre a entrada recebida da manete
-//to do: Eu acho que essa struct é redundante pois é a exata mesma struct js_event da biblioteca joystick.h
+//Estrutura que encapsula o evento gerado por acionar a manete
 typedef struct{
-	char* combo;
-	int* axis;
-	int* buttons;
+	char* combo; //String de como caso esxista uma, NULL caso contrário
+	int* axis; //Vetor dos estados atuais dos eixos da manete
+	int* buttons; //Vetor dos estados atuais dos botões da manete
 	unsigned int type; //JS_EVENT_BUTTON, JS_EVENT_AXIS ou JS_EVENT_INIT
 	unsigned int id; //Identifica qual botão/eixo foi acionado
 	int value; //1(pressionado) ou 0(solto) para botões, [-32767, +32767] para eixos
 	unsigned int time; //tempo em que o botão foi pressionado em milisegundos
-	snd_seq_t* handle;
-	int in_id;
-	int out_id;
+	snd_seq_t* handle; //Handle do sequenciador MIDI alsa
+	int in_id; //ID da porta de entrada do sequenciador
+	int out_id; //ID da porta de saida do sequenciador
 }t_mosaic_button_event;
 
 //Definição da assinatura da função callback de evento
@@ -28,8 +27,7 @@ typedef void (t_mosaic_joystick_event_callback_function)(
                 t_mosaic_button_event *event
                 );
 
-//Definição da função callback de registro
-//to do: Talvez, um callback diferente para esta situação não seja necessário, acho que as informações sobre o dispositivo deveriam ser salvas na estrutura t_mosaic_device_data
+//Deefinição da assinatura da função callback de registro
 typedef void (t_mosaic_joystick_register_callback_function)(
                 char * device,
                 char * name,
@@ -60,7 +58,7 @@ void *joystick_thread(void *data){
 	//Abertura do arquivo de entrada da manete
 	int fd = open(((t_mosaic_device_data *)data)->device, O_RDONLY);
 	//A chamada abaixo informa o nome do dispositivo
-	//Se o nome não puder ser recebido ele é definido como "Unknow"	
+	//Se o nome não puder ser recebido ele é definido como "Unknown"	
 	char name[128];
 	if (ioctl(fd, JSIOCGNAME(sizeof(name)), name) < 0)
 		strncpy(name, "Unknown", sizeof(name));
@@ -73,6 +71,7 @@ void *joystick_thread(void *data){
 	//A chamada abaixo informa o número de botões da manete
 	char number_of_buttons;
 	ioctl(fd, JSIOCGBUTTONS, &number_of_buttons);
+	//Inicialização do vetor de botões
 	buttons = (int*)malloc((int)number_of_buttons * sizeof(int));
 	for(i = 0; i < number_of_buttons; i++) buttons[i] = 0;
 	//A chamada abaixo informa a versão do driver do dispositivo
@@ -90,7 +89,7 @@ void *joystick_thread(void *data){
 	//Abre um cliente com o sequenciador MIDI
 	snd_seq_t* handle;
 	int in_id, out_id;
-	open_client(&handle, &in_id, &out_id);
+	open_client(&handle, &in_id, &out_id, "ControlTunes");
 	//A partir daqui os eventos das entradas da manete começam a serem lidos
 	t_mosaic_button_event *btn_event = (t_mosaic_button_event *) malloc(sizeof(btn_event));
 	struct js_event msg;

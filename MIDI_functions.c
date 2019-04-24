@@ -5,18 +5,19 @@
 #define CHK(stmt, msg) if((stmt) < 0) {puts("ERROR: "#msg); exit(1);}
 
 //Parâmetros de entrada:
-//handle: Varíavel que guarda o handle do sequenciador
+//handle: Varíavel que guarda o handle do cliente
 //in_port_id: Variável que guarda o id da porta de entrada
 //out_port_id: Variável que guarda o ida da porta de saída
+//name: Nome do cliente
 //Descrição:
-//Abre o ALSA Sequencer para entrada e saida e cria uma porta para cada função
-int open_client(snd_seq_t** handle, int* in_port_id, int* out_port_id){
+//Abre um cliente com o ALSA Sequencer para entrada e saida e cria uma porta para cada função
+int open_client(snd_seq_t** handle, int* in_port_id, int* out_port_id, char* name){
 	CHK(snd_seq_open(handle, "default", SND_SEQ_OPEN_DUPLEX, 0), "Could not open sequencer");
 //Se não for necessário criar duas portas, basta mudar o valor acima para SND_SEQ_OPEN_INPUT (ou OUTPUT) e usar apenas uma das ultimas duas funções.
-	CHK(snd_seq_set_client_name(*handle, "MIDI Client"), "Could not set client name");
+	CHK(snd_seq_set_client_name(*handle, name), "Could not set client name");
 //A função acima define o nome do cliente, nesse caso "MIDI Client"
-	CHK(*out_port_id = snd_seq_create_simple_port(*handle, "Out-port", SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ, SND_SEQ_PORT_TYPE_APPLICATION), "Could not open port");
-	CHK(*in_port_id = snd_seq_create_simple_port(*handle, "In-port", SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE, SND_SEQ_PORT_TYPE_APPLICATION), "Could not open port");
+	CHK(*out_port_id = snd_seq_create_simple_port(*handle, "Out", SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ, SND_SEQ_PORT_TYPE_APPLICATION), "Could not open port");
+	CHK(*in_port_id = snd_seq_create_simple_port(*handle, "In", SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE, SND_SEQ_PORT_TYPE_APPLICATION), "Could not open port");
 	return 0;
 }
 
