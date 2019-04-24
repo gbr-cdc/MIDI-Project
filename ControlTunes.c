@@ -253,7 +253,7 @@ void *thread(void *vargp){
 	//Abre um cliente com o sequenciador MIDI
 	snd_seq_t* handle;
 	int in_id, out_id;
-	open_client(&handle, &in_id, &out_id);
+	open_client(&handle, &in_id, &out_id, "ControlTunes");
 
 	while(1){
 		//Faz a leitura de um evento da manete, encerra a execução se não conseguir		
