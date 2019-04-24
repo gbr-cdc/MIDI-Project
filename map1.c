@@ -1,4 +1,4 @@
-#include"joystick.h"
+#include"MIDI_joystick.h"
 #include<string.h>
 
 char** combos; //Matriz de combos reconheciveis
