@@ -6,7 +6,7 @@
 #include <string.h>
 #include <time.h>
 #include <pthread.h>
-#include "MIDI_functions.c"
+#include "MIDI_functions.h"
 
 //Estrutura que encapsula o evento gerado por acionar a manete
 typedef struct{
@@ -113,10 +113,7 @@ void *joystick_thread(void *data){
 		if(read(fd, &msg, sizeof(struct js_event)) != sizeof(struct js_event)){
 			printf("EVENT READING ERROR\n");			
 			pthread_exit((void *)NULL);
-		}
-		//Atualização do estado do joystick
-		if(msg.type == JS_EVENT_AXIS) axis[msg.number] = msg.value;
-		if(msg.type == JS_EVENT_BUTTON) buttons[msg.number] = msg.value;		
+		}		
 		//Tratamento de Combo
 		if((msg.type == JS_EVENT_AXIS) && ((msg.value == 32767) || (msg.value == -32767) || (msg.value == 0))){
 			if(ccount == 128) ccount = 0;
@@ -180,6 +177,9 @@ void *joystick_thread(void *data){
 		btn_event->buttons = buttons; 
 		//A chamada da função de callback para os eventos se encontra aqui
 		((t_mosaic_device_data *)data)->event_callback_function(btn_event);
+		//Atualização do estado do joystick
+		if(msg.type == JS_EVENT_AXIS) axis[msg.number] = msg.value;
+		if(msg.type == JS_EVENT_BUTTON) buttons[msg.number] = msg.value;
 	}
 }
 
