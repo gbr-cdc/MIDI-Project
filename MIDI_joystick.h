@@ -45,6 +45,8 @@ typedef struct {
 
 //Thread que abre e gerencia as informações e entradas de cada manete
 void *joystick_thread(void *data){
+	int buttons_pressed;
+	int chain;	
 	//vetor que monitorará o estado atual dos eixos	
 	int* axis;
 	//vetor que monitorará o estado atual dos butões
@@ -108,62 +110,82 @@ void *joystick_thread(void *data){
 	cbuffer = (char*)malloc(128 * sizeof(char));
 	ccount = 0;
 	time = 0;
+	buttons_pressed = 0;
+	chain = 0;
 	//O laço abaixo faz o tratamento dos eventos verdadeiros	
 	while(1) {
 		if(read(fd, &msg, sizeof(struct js_event)) != sizeof(struct js_event)){
 			printf("EVENT READING ERROR\n");			
 			pthread_exit((void *)NULL);
-		}		
+		}
+		//Esse trecho conta a quantidade de botões que estão em estado pressionado
+		if(msg.type == JS_EVENT_BUTTON){
+			if(msg.value) buttons_pressed++;
+			else buttons_pressed--;
+		}	
 		//Tratamento de Combo
-		if((msg.type == JS_EVENT_AXIS) && ((msg.value == 32767) || (msg.value == -32767) || (msg.value == 0))){
+		if((msg.type == JS_EVENT_AXIS) && ((msg.number == 0) || (msg.number == 1) || (msg.number == 4) || (msg.number == 5))){
 			if(ccount == 128) ccount = 0;
 			if((msg.time - time) > 500){
 				ccount = 0;
-			}			
-			time = msg.time;
-			cbuffer[ccount] = (msg.number/2) * 16;
+			}
 			if((msg.number % 2) != 0){
 				if(msg.value == -32767){
-					if(axis[msg.number - 1] == -32767) cbuffer[ccount] += 7; 
-					if(axis[msg.number - 1] == 0) cbuffer[ccount] += 8;
-					if(axis[msg.number - 1] == 32767) cbuffer[ccount] += 9;
+					if(axis[msg.number - 1] == -32767) cbuffer[ccount++] = 7; 
+					if(axis[msg.number - 1] == 0) cbuffer[ccount++] = 8;
+					if(axis[msg.number - 1] == 32767) cbuffer[ccount++] = 9;
 				}
 				if(msg.value == 32767){
-					if(axis[msg.number - 1] == -32767) cbuffer[ccount] += 1;
-					if(axis[msg.number - 1] == 0) cbuffer[ccount] += 2;
-					if(axis[msg.number - 1] == 32767) cbuffer[ccount] += 3;
+					if(axis[msg.number - 1] == -32767) cbuffer[ccount++] = 1;
+					if(axis[msg.number - 1] == 0) cbuffer[ccount++] = 2;
+					if(axis[msg.number - 1] == 32767) cbuffer[ccount++] = 3;
 				}
 				if(msg.value == 0){
-					if(axis[msg.number - 1] == -32767) cbuffer[ccount] += 4;
-					if(axis[msg.number - 1] == 0) ccount--;
-					if(axis[msg.number - 1] == 32767) cbuffer[ccount] += 6;
+					if(axis[msg.number - 1] == -32767) cbuffer[ccount++] = 4;
+					//if(axis[msg.number - 1] == 0) ccount--;
+					if(axis[msg.number - 1] == 32767) cbuffer[ccount++] = 6;
 				}
 			}else{
 				if(msg.value == -32767){
-					if(axis[msg.number + 1] == -32767) cbuffer[ccount] +=  7; 
-					if(axis[msg.number + 1] == 0) cbuffer[ccount] += 4;
-					if(axis[msg.number + 1] == 32767) cbuffer[ccount] += 1;
+					if(axis[msg.number + 1] == -32767) cbuffer[ccount++] =  7; 
+					if(axis[msg.number + 1] == 0) cbuffer[ccount++] = 4;
+					if(axis[msg.number + 1] == 32767) cbuffer[ccount++] = 1;
 				}
 				if(msg.value == 32767){
-					if(axis[msg.number + 1] == -32767) cbuffer[ccount] += 9;
-					if(axis[msg.number + 1] == 0) cbuffer[ccount] += 6;
-					if(axis[msg.number + 1] == 32767) cbuffer[ccount] += 3;
+					if(axis[msg.number + 1] == -32767) cbuffer[ccount++] = 9;
+					if(axis[msg.number + 1] == 0) cbuffer[ccount++] = 6;
+					if(axis[msg.number + 1] == 32767) cbuffer[ccount++] = 3;
 				}
 				if(msg.value == 0){
-					if(axis[msg.number + 1] == -32767) cbuffer[ccount] += 8;
-					if(axis[msg.number + 1] == 0) ccount--;
-					if(axis[msg.number + 1] == 32767) cbuffer[ccount] += 2;
+					if(axis[msg.number + 1] == -32767) cbuffer[ccount++] = 8;
+					//if(axis[msg.number + 1] == 0) ccount--;
+					if(axis[msg.number + 1] == 32767) cbuffer[ccount++] = 2;
 				}
-			}
-			ccount++;			
+			}			
 		}
 		btn_event->combo = NULL;
-		if(msg.type == JS_EVENT_BUTTON && ccount > 0){			
-			if(ccount < 128){
+		//Se a entrada for um botão
+		if(msg.type == JS_EVENT_BUTTON){			
+			//Ele passará a string de combo caso ouver algum no buffer			
+			if(ccount > 0){
 				cbuffer[ccount] = '\0';
 				btn_event->combo = cbuffer;
+				ccount = 0;
+				chain = 1;
+			}else{
+				//Se o botão for pressionado logo após outro e houver um combo desencadeado, ele também receberá o combo
+				if(((msg.time - time) < 200) && chain) btn_event->combo = cbuffer;
+				else chain = 0;
 			}
-			ccount = 0;
+		}
+		if(msg.type == JS_EVENT_AXIS){
+			if(msg.number == 2 || msg.number == 3){
+				if(ccount > 0){
+					cbuffer[ccount] = '\0';
+					btn_event->combo = cbuffer;
+					ccount = 0;
+				}	
+			}
 		}
 		//Definição do btn_event
 		btn_event->type = msg.type;
@@ -180,6 +202,7 @@ void *joystick_thread(void *data){
 		//Atualização do estado do joystick
 		if(msg.type == JS_EVENT_AXIS) axis[msg.number] = msg.value;
 		if(msg.type == JS_EVENT_BUTTON) buttons[msg.number] = msg.value;
+		time = msg.time;
 	}
 }
 
