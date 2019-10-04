@@ -2,108 +2,136 @@
 #include<string.h>
 
 char** combos; //Matriz de combos reconheciveis
-int* entradas; //Vetor que guarda os combos reconhecidos
+int* comandos; //String contendo
 int base; //Valor base para a escala de notas na manete
 int note_vel; //Valor da dinâmica da mensagem MIDI enviada
 char** note; //Vetor que guarda as notas enviadas para ser efetuado um NOTEOFF depois
-
+#define c_qtd 5
 //Variaveis da alavanca direita
-int R3_cmd;
+int R3_cmd[128];
 int R3toggle;
 
 //Conexões atuais da controle
-int ctrl1;
-int ctrl2;
-int ctrl3;
+int axis_x;
+int axis_y;
+int rotation;
 
 void joystick_callback(t_mosaic_button_event *msg){
 	//Declaração de variáveis	
-	int i, s1, s2, aux, port_id, p_atual, p_anterior;
+	int i, j, k, t, aux, port_id, p_atual, p_anterior;
 	snd_seq_t* handle;
-	//Interpretação da String de Combo	
-	i = 0;
-	s1 = 0;
-	s2 = 0;
+	handle = msg->handle;
+	port_id = msg->out_id;
+	//Se o botão não foi pressionado logo após outro os padrões do combo anterior são zerados
+	if(!msg->chain || msg->type == JS_EVENT_AXIS){
+		for(i = 0; i < 20; i++){
+			comandos[i] = 0;
+		}
+	}
+
+	//Interpretação da String de Combo
 	if(msg->combo){
-		while(msg->combo[i] != '\0'){
-			if(msg->combo[i] == combos[0][s1]){
-				s1++;
-				if(s1 > 1){
-					if(!entradas[1]){
-						entradas[0]++;
-						entradas[2]--;
-						entradas[3]--;
+		j = 0;		
+		while(msg->combo[j] != '\0'){
+			printf("%d ", msg->combo[j]);				
+			j++;
+		}
+		printf("\n");
+		for(i = 0; i <= c_qtd; i++){
+			j = 0;
+			k = 1;
+			//Navega pelo combo
+			while(msg->combo[j] != '\0'){				
+				//Verifica o padrão
+				if(msg->combo[j] == combos[i][k]){
+					//Se padrão completo reconhecido
+					if(k == (combos[i][0])){
+						comandos[i]++;
+						//Apago o trecho reconhecido para que ele não seja usado de novo
+						for(t = 0; t < k; t++){
+							msg->combo[j - t] = 'x';
+						}
+						k = 1;
+					}else{
+						k++;
 					}
-					s1 = 0;			
 				}
-			}else s1 = 0;
-			if(msg->combo[i] == combos[1][s2]){
-				s2++;
-				if(s2 > 1){
-					if(!entradas[0]){
-						entradas[1]++;
-						entradas[2]--;
-						entradas[3]--;
-					}
-					s2 = 0;
+				j++;
+			}
+		}
+		j = 0;
+		while(msg->combo[j] != '\0'){
+			if(!comandos[c_qtd + 2]){
+				if(msg->combo[j] == 4 && msg->combo[j+1] == 6){
+					comandos[c_qtd + 1]++;
+					msg->combo[j] = 'x';
+					msg->combo[j+1] = 'x';
 				}
-			}else s2 = 0;
-			if(msg->combo[i] == combos[2][0]){
-				entradas[2]++;
 			}
-			if(msg->combo[i] == combos[3][0]){
-				entradas[3]++;
+			if(!comandos[c_qtd + 1]){
+				if(msg->combo[j] == 6 && msg->combo[j+1] == 4){
+					comandos[c_qtd + 2]++;
+					msg->combo[j] = 'x';
+					msg->combo[j+1] = 'x';
+				}
 			}
-			if(msg->combo[i] == combos[4][0]){
-				entradas[4]++;
+			if(!comandos[c_qtd + 4]){
+				if(msg->combo[j] == 2 && msg->combo[j+1] == 8){
+					comandos[c_qtd + 3]++;
+					msg->combo[j] = 'x';
+					msg->combo[j+1] = 'x';
+				}
 			}
-			if(msg->combo[i] == combos[5][0]){
-				entradas[5]++;
+			if(!comandos[c_qtd + 3]){
+				if(msg->combo[j] == 8 && msg->combo[j+1] == 2){
+					comandos[c_qtd + 4]++;
+					msg->combo[j] = 'x';
+					msg->combo[j+1] = 'x';
+				}
 			}
-			printf("%d ", msg->combo[i]);
-			i++;
+			j++;
+		}
+		j = 0;
+		while(msg->combo[j] != '\0'){
+			if(msg->combo[j] == 6) comandos[c_qtd + 5]++;
+			if(msg->combo[j] == 2) comandos[c_qtd + 6]++;
+			if(msg->combo[j] == 4) comandos[c_qtd + 7]++;
+			if(msg->combo[j] == 8) comandos[c_qtd + 8]++;
+			j++;
+		}
+		for(i = 0; i < 20; i++){
+			printf("%d ", comandos[i]);
 		}
 		printf("\n");
 	}
 	//Interpretação do evento
-	handle = msg->handle;
-	port_id = msg->out_id;
-	if(msg->type == JS_EVENT_BUTTON){				
-		if(entradas[0]){
-			for(i = 0; i < 128; i++){
-				msg->combo[i] = 0;
-			}	
-		}
-		while(entradas[0]){
+	if(msg->type == JS_EVENT_BUTTON){						
+		//Mudança de oitava		
+		while(comandos[c_qtd + 3] > 0){
 			base += 12;
-			entradas[0]--;
-			printf("Base: %d\n", base);
+			comandos[c_qtd + 3]--;
 		}
-		if(entradas[1]){
-			for(i = 0; i < 128; i++){
-				msg->combo[i] = 0;
-			}	
-		}
-		while(entradas[1]){
+		while(comandos[c_qtd + 4] > 0){
 			base -= 12;
-			entradas[1]--;
-			printf("Base: %d\n", base);
+			comandos[c_qtd + 4]--;
 		}
-		for(i = 0; i < entradas[2]; i++){
+		//Sustenido e Bemol		
+		for(i = 0; i < comandos[c_qtd + 8]; i++){
 			base++;
-			printf("Base aumentada em 1 ponto\n");
 		}
-		for(i = 0; i < entradas[3]; i++){
+		for(i = 0; i < comandos[c_qtd + 6]; i++){
 			base--;
-			printf("Base diminuida em 1 ponto\n");
 		}
+		//Este switch identifica o botão pressionado
 		switch(msg->id){
 			case 0:
 				//Triângulo				
 				if(msg->value){
+					//Envia uma nota MIDI caso pressionado					
 					send_note(note_vel, base + 9, 0, handle, port_id);
 					note[0][0] = base + 9;
-				}else{				
+				}else{
+					//Envia um NOTEOFF para a ultima nota MIDI acionada
 					send_note(0, note[0][0], 0, handle, port_id);
 				}
 			break;
@@ -201,6 +229,7 @@ void joystick_callback(t_mosaic_button_event *msg){
 			case 11:
 				//R3
 				if(msg->value == 1){
+					//Ativa/desativa a variável R3toggle cadavez que é pressionado
 					if(R3toggle == 0) R3toggle = 1;
 					else R3toggle = 0;
 				}else{
@@ -208,7 +237,62 @@ void joystick_callback(t_mosaic_button_event *msg){
 				}
 			break;
 		}
+		for(i = 0; i < comandos[c_qtd + 8]; i++){
+		base--;
+		}
+		for(i = 0; i < comandos[c_qtd + 6]; i++){
+			base++;
+		}
 	}else if(msg->type == JS_EVENT_AXIS){
+		aux = -1;
+		if(comandos[c_qtd + 5]){
+			while(comandos[c_qtd + 5]){
+				aux = aux + 1;
+				comandos[c_qtd + 5]--;
+			}
+		}else if(comandos[c_qtd + 6] && !comandos[2] && !comandos[3]){
+			aux = 15;			
+			while(comandos[c_qtd + 6]){
+				aux = aux + 1;
+				comandos[c_qtd + 6]--;
+			}
+		}else if(comandos[c_qtd + 7]){
+			aux = 31;
+			while(comandos[c_qtd + 7]){
+				aux = aux + 1;
+				comandos[c_qtd + 7]--;
+			}
+		}else if(comandos[c_qtd + 8] && !comandos[4] && !comandos[5]){
+			aux = 47;
+			while(comandos[c_qtd + 8]){
+				aux = aux + 1;
+				comandos[c_qtd + 8]--;
+			}
+		}else if(comandos[2]){
+			aux = 63;
+			while(comandos[c_qtd + 6]){
+				aux = aux + 1;
+				comandos[c_qtd + 6]--;
+			}
+		}else if(comandos[3]){
+			aux = 78;
+			while(comandos[c_qtd + 6]){
+				aux = aux + 1;
+				comandos[c_qtd + 6]--;
+			}
+		}else if(comandos[4]){
+			aux = 94;
+			while(comandos[c_qtd + 8]){
+				aux = aux + 1;
+				comandos[c_qtd + 8]--;
+			}
+		}else if(comandos[5]){
+			aux = 110;
+			while(comandos[c_qtd + 8]){
+				aux = aux + 1;
+				comandos[c_qtd + 8]--;
+			}
+		}
 		switch(msg->id){
 			case 0:
 			//Para eixos horizontais, os valores crescem da esquerda para a direita, com o 0 com centro			
@@ -235,57 +319,22 @@ void joystick_callback(t_mosaic_button_event *msg){
 			case 2:
 				//R3 Horizontal
 				if(!R3toggle){
-					//Seleção de controlador para o eixo horizontal
-					aux = -1;
-					while(entradas[2]){
-						aux += 4;
-						entradas[2]--;					
-					}
-					while(entradas[3]){
-						aux += 2;
-						entradas[3]--;					
-					}
-					while(entradas[4]){
-						aux += 1;
-						entradas[4]--;					
-					}
-					while(entradas[5]){
-						aux += 3;
-						entradas[5]--;					
-					}
-					if(aux != -1){
-						ctrl2 = aux;
-						printf("Horizontal controlando %d\n", ctrl2);
+					if(aux > -1){
+						axis_y = aux;
+						printf("Horizontal controlando %d\n", axis_y);
 					}
 					//______________________________________________
 					//Este eixo envia uma mensagem MIDI de controle
 					aux = msg->value;
 					aux += 32767;
 					aux = (((double)aux / 65534.0) * 127);
-					send_control(ctrl2, (int)aux, 0, handle, port_id);
+					send_control(axis_y, (int)aux, 0, handle, port_id);
 					//______________________________________________
 				}else{
 					//Seleção de controlador para a rotação					
-					aux = -1;
-					while(entradas[2]){
-						aux += 4;
-						entradas[2]--;					
-					}
-					while(entradas[3]){
-						aux += 2;
-						entradas[3]--;					
-					}
-					while(entradas[4]){
-						aux += 1;
-						entradas[4]--;					
-					}
-					while(entradas[5]){
-						aux += 3;
-						entradas[5]--;					
-					}
-					if(aux != -1){
-						ctrl3 = aux;
-						printf("Rotação controlando %d\n", ctrl3);
+					if(aux > -1){
+						rotation = aux;
+						printf("Rotação controlando %d\n", rotation);
 					}
 					//___________________________________________
 					if(msg->axis[3] == 32767){
@@ -293,20 +342,20 @@ void joystick_callback(t_mosaic_button_event *msg){
 						p_atual = (((double)p_atual / 65534.0) * 4);
 						p_anterior = msg->axis[2] + 32767;
 						p_anterior = (((double)p_anterior / 65534.0) * 4);
-						if(p_atual > p_anterior) R3_cmd--;
-						if(p_atual < p_anterior) R3_cmd++;
+						if(p_atual > p_anterior) R3_cmd[rotation]--;
+						if(p_atual < p_anterior) R3_cmd[rotation]++;
 					}
 					if(msg->axis[3] == -32767){
 						p_atual = msg->value + 32767;
 						p_atual = (((double)p_atual / 65534.0) * 4);
 						p_anterior = msg->axis[2] + 32767;
 						p_anterior = (((double)p_anterior / 65534.0) * 4);
-						if(p_atual > p_anterior) R3_cmd++;
-						if(p_atual < p_anterior) R3_cmd--;
+						if(p_atual > p_anterior) R3_cmd[rotation]++;
+						if(p_atual < p_anterior) R3_cmd[rotation]--;
 					}
 					if(R3_cmd > 127) R3_cmd = 127;
 					if(R3_cmd < 0) R3_cmd = 0;
-					send_control(ctrl3, R3_cmd, 0, handle, port_id);
+					send_control(rotation, R3_cmd, 0, handle, port_id);
 				}
 				if(msg->value > 0){
 					//Direita
@@ -319,78 +368,40 @@ void joystick_callback(t_mosaic_button_event *msg){
 			case 3:
 				//R3 Vertical
 				if(!R3toggle){
-					//Seleção de controlador para o eixo vertical
-					aux = -1;
-					while(entradas[2]){
-						aux += 4;
-						entradas[2]--;					
+					if(aux > -1){
+						axis_x = aux;
+						printf("Vertical controlando %d\n", axis_x);
 					}
-					while(entradas[3]){
-						aux += 2;
-						entradas[3]--;					
-					}
-					while(entradas[4]){
-						aux += 1;
-						entradas[4]--;					
-					}
-					while(entradas[5]){
-						aux += 3;
-						entradas[5]--;					
-					}
-					if(aux != -1){
-						ctrl1 = aux;
-						printf("Vertical controlando %d\n", ctrl1);
-					}
-					//________________________________________________
 					//Este exio envia uma mensagem MIDI de Pitchbend
 					aux = msg->value;
 					aux += 32767;
 					aux = (((double)aux / 65534.0) * 127);
-					send_control(ctrl1, (int)aux, 0, handle, port_id);
+					send_control(axis_x, (int)aux, 0, handle, port_id);
 					//_______________________________________________
 				}else{
-					//Seleção de controlador para a rotação
-					aux = -1;
-					while(entradas[2]){
-						aux += 4;
-						entradas[2]--;					
+					if(aux > -1){
+						rotation = aux;
+						printf("Rotação controlando %d\n", rotation);
 					}
-					while(entradas[3]){
-						aux += 2;
-						entradas[3]--;					
-					}
-					while(entradas[4]){
-						aux += 1;
-						entradas[4]--;					
-					}
-					while(entradas[5]){
-						aux += 3;
-						entradas[5]--;					
-					}
-					if(aux != -1){
-						ctrl3 = aux;
-						printf("Rotação controlando %d\n", ctrl3);
-					}
-					//_________________________________________
 					if(msg->axis[2] == 32767){
 						p_atual = msg->value + 32767;
 						p_atual = (((double)p_atual / 65534.0) * 4);
 						p_anterior = msg->axis[3] + 32767;
 						p_anterior = (((double)p_anterior / 65534.0) * 4);
-						if(p_atual > p_anterior) R3_cmd++;
-						if(p_atual < p_anterior) R3_cmd--;
+						if(p_atual > p_anterior) R3_cmd[rotation]++;
+						if(p_atual < p_anterior) R3_cmd[rotation]--;
 					}
 					if(msg->axis[2] == -32767){
 						p_atual = msg->value + 32767;
 						p_atual = (((double)p_atual / 65534.0) * 4);
 						p_anterior = msg->axis[3] + 32767;
 						p_anterior = (((double)p_anterior / 65534.0) * 4);
-						if(p_atual > p_anterior) R3_cmd--;
-						if(p_atual < p_anterior) R3_cmd++;
+						if(p_atual > p_anterior) R3_cmd[rotation]--;
+						if(p_atual < p_anterior) R3_cmd[rotation]++;
 					}
 					if(R3_cmd > 127) R3_cmd = 127;
 					if(R3_cmd < 0) R3_cmd = 0;
-					send_control(ctrl3, R3_cmd, 0, handle, port_id);
+					send_control(rotation, R3_cmd, 0, handle, port_id);
 				}
 				if(msg->value > 0){
 					//Baixo 
@@ -422,48 +433,71 @@ void joystick_callback(t_mosaic_button_event *msg){
 			break;
 		}
 	}
-	while(entradas[2]){
-		base--;
-		entradas[2]--;
-		printf("Base diminuida em 1 ponto\n");
-	}
-	while(entradas[3]){
-		base++;
-		entradas[3]--;
-		printf("Base aumentada em 1 ponto\n");
-	}
 }
 
 int main(){
-	//Definição dos Combos e das Entradas	
 	int i;
+	//Inicialização de valores globais
 	base = 60;
 	note_vel = 80;
-	R3_cmd = 0;
 	R3toggle = 0;
-	ctrl1 = 0;
-	ctrl2 = 1;
-	ctrl3 = 0;
+	axis_x = 0;
+	axis_y = 1;
+	rotation = 0;
+	//Inicialização do vetor de notas disparadas
+	//Este vetor é usado para dar NOTEOFF nas notas corretas
 	note = (char**)malloc(8 * sizeof(char*));
 	for(i = 0; i < 8; i++){
 		note[i] = (char*)malloc(2 * sizeof(char));
 		note[i][0] = 0;
 		note[i][1] = -1;
 	}
-	entradas = (int*)malloc(20 * sizeof(int));
+	//Inicialização do vetor de comandos reconhecidos e do vetor de combos reconhecíveis
+	comandos = (int*)malloc(20 * sizeof(int));
 	combos = (char**)malloc(20 * sizeof(char*));
 	for(i = 0; i < 20; i++){
 		combos[i] = (char*)malloc(10 * sizeof(char));
-		entradas[i] = 0; 
+		comandos[i] = 0; 
 	}
-	combos[0][0] = 2;
-	combos[0][1] = 8;
-	combos[1][0] = 8;
-	combos[1][1] = 2;
-	combos[2][0] = 8;
-	combos[3][0] = 2;
-	combos[4][0] = 6;
-	combos[5][0] = 4;
+	for(i = 0; i < 128; i++){
+		R3_cmd[i] = 0;
+	}
+	//Lista de combos reconhecíveis
+	//41236
+	combos[0][0] = 5;	
+	combos[0][1] = 4;
+	combos[0][2] = 1;
+	combos[0][3] = 2;
+	combos[0][4] = 3;
+	combos[0][5] = 6;	
+	//63214
+	combos[1][0] = 5;	
+	combos[1][1] = 6;
+	combos[1][2] = 3;
+	combos[1][3] = 2;
+	combos[1][4] = 1;
+	combos[1][5] = 4;
+	//236
+	combos[2][0] = 3;
+	combos[2][1] = 2;
+	combos[2][2] = 3;
+	combos[2][3] = 6;
+	//214
+	combos[3][0] = 3;
+	combos[3][1] = 2;
+	combos[3][2] = 1;
+	combos[3][3] = 4;
+	//896
+	combos[4][0] = 3;
+	combos[4][1] = 8;
+	combos[4][2] = 9;
+	combos[4][3] = 6;
+	//874
+	combos[5][0] = 3;
+	combos[5][1] = 8;
+	combos[5][2] = 7;
+	combos[5][3] = 4;
+	
 	//Inicialização da Manete	
 	joystick_inicialize("/dev/input/js0", &joystick_callback, NULL);
 	while(1) usleep(10000);
