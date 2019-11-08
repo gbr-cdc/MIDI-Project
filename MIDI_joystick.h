@@ -174,7 +174,7 @@ void *joystick_thread(void *data){
 				chain = 1;
 			}else{
 				//Se o botão for pressionado logo após outro e houver um combo desencadeado, ele também receberá o combo
-				if(((msg.time - time) < 200) && chain) btn_event->combo = cbuffer;
+				if(((msg.time - time) < 200) && chain && (msg.value == 1)) btn_event->combo = cbuffer;
 				else chain = 0;
 			}
 		}

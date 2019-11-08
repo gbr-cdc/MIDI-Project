@@ -22,12 +22,6 @@ void joystick_callback(t_mosaic_button_event *msg){
 	snd_seq_t* handle;
 	handle = msg->handle;
 	port_id = msg->out_id;
-	//Se o botão não foi pressionado logo após outro os padrões do combo anterior são zerados
-	if(!msg->chain || msg->type == JS_EVENT_AXIS){
-		for(i = 0; i < 20; i++){
-			comandos[i] = 0;
-		}
-	}
 
 	//Interpretação da String de Combo
 	if(msg->combo){
@@ -353,9 +347,9 @@ void joystick_callback(t_mosaic_button_event *msg){
 						if(p_atual > p_anterior) R3_cmd[rotation]++;
 						if(p_atual < p_anterior) R3_cmd[rotation]--;
 					}
-					if(R3_cmd > 127) R3_cmd = 127;
-					if(R3_cmd < 0) R3_cmd = 0;
-					send_control(rotation, R3_cmd, 0, handle, port_id);
+					if(R3_cmd[rotation] > 127) R3_cmd[rotation] = 127;
+					if(R3_cmd[rotation] < 0) R3_cmd[rotation] = 0;
+					send_control(rotation, R3_cmd[rotation], 0, handle, port_id);
 				}
 				if(msg->value > 0){
 					//Direita
@@ -399,9 +393,9 @@ void joystick_callback(t_mosaic_button_event *msg){
 						if(p_atual > p_anterior) R3_cmd[rotation]--;
 						if(p_atual < p_anterior) R3_cmd[rotation]++;
 					}
-					if(R3_cmd > 127) R3_cmd = 127;
-					if(R3_cmd < 0) R3_cmd = 0;
-					send_control(rotation, R3_cmd, 0, handle, port_id);
+					if(R3_cmd[rotation] > 127) R3_cmd[rotation] = 127;
+					if(R3_cmd[rotation] < 0) R3_cmd[rotation] = 0;
+					send_control(rotation, R3_cmd[rotation], 0, handle, port_id);
 				}
 				if(msg->value > 0){
 					//Baixo 
@@ -432,6 +426,9 @@ void joystick_callback(t_mosaic_button_event *msg){
 				}
 			break;
 		}
+	}
+	for(i = 0; i < 20; i++){
+		comandos[i] = 0;
 	}
 }
 
