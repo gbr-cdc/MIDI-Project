@@ -10,6 +10,7 @@ char** note; //Vetor que guarda as notas enviadas para ser efetuado um NOTEOFF d
 //Variaveis da alavanca direita
 int R3_cmd[128];
 int R3toggle;
+int ch;
 
 //Conexões atuais da controle
 int axis_x;
@@ -22,7 +23,12 @@ void joystick_callback(t_mosaic_button_event *msg){
 	snd_seq_t* handle;
 	handle = msg->handle;
 	port_id = msg->out_id;
-
+	
+	if(!msg->chain){
+		for(i = 0; i < 20; i++){
+			comandos[i] = 0;
+		}
+	}
 	//Interpretação da String de Combo
 	if(msg->combo){
 		j = 0;		
@@ -116,80 +122,241 @@ void joystick_callback(t_mosaic_button_event *msg){
 		for(i = 0; i < comandos[c_qtd + 6]; i++){
 			base--;
 		}
+		if(comandos[0]) ch = 3;
+		if(comandos[c_qtd + 7]) ch = 1;
+		if(comandos[c_qtd + 5]) ch = 2;
 		//Este switch identifica o botão pressionado
 		switch(msg->id){
 			case 0:
 				//Triângulo				
 				if(msg->value){
-					//Envia uma nota MIDI caso pressionado					
-					send_note(note_vel, base + 9, 0, handle, port_id);
-					note[0][0] = base + 9;
+					//Envia uma nota MIDI caso pressionado
+					if(comandos[2]){				
+						send_note(note_vel, base + 9, ch, handle, port_id);
+						send_note(note_vel, base + 9 + 4, ch, handle, port_id);
+						send_note(note_vel, base + 9 + 7, ch, handle, port_id);
+						note[0][0] = base + 9;
+						note[0][1] = 0;
+						note[0][2] = ch;
+					}else{
+						send_note(note_vel, base + 9, ch, handle, port_id);
+						note[0][0] = base + 9;
+						note[0][1] = -1;
+						note[0][2] = ch;
+					}
 				}else{
 					//Envia um NOTEOFF para a ultima nota MIDI acionada
-					send_note(0, note[0][0], 0, handle, port_id);
+					if(note[0][1] == -1){
+						send_note(0, note[0][0], note[0][2], handle, port_id);
+					}
+					if(note[0][1] == 0){
+						send_note(0, note[0][0], note[0][2], handle, port_id);
+						send_note(0, note[0][0] + 4, note[0][2], handle, port_id);
+						send_note(0, note[0][0] + 7, note[0][2], handle, port_id);
+					}
 				}
 			break;
 			case 1:
 				//Bolinha
 				if(msg->value){
-					send_note(note_vel, base + 12, 0, handle, port_id);
-					note[1][0] = base + 12;
+					//Envia uma nota MIDI caso pressionado
+					if(comandos[2]){				
+						send_note(note_vel, base + 12, ch, handle, port_id);
+						send_note(note_vel, base + 12 + 4, ch, handle, port_id);
+						send_note(note_vel, base + 12 + 7, ch, handle, port_id);
+						note[1][0] = base + 12;
+						note[1][1] = 0;
+						note[1][2] = ch;
+					}else{
+						send_note(note_vel, base + 12, ch, handle, port_id);
+						note[1][0] = base + 12;
+						note[1][1] = -1;
+						note[1][2] = ch;
+					}
 				}else{
-					send_note(0, note[1][0], 0, handle, port_id);
+					//Envia um NOTEOFF para a ultima nota MIDI acionada
+					if(note[1][1] == -1){
+						send_note(0, note[1][0], note[1][2], handle, port_id);
+					}
+					if(note[1][1] == 0){
+						send_note(0, note[1][0], note[1][2], handle, port_id);
+						send_note(0, note[1][0] + 4, note[1][2], handle, port_id);
+						send_note(0, note[1][0] + 7, note[1][2], handle, port_id);
+					}
 				}
 			break;
 			case 2:
 				//Xis					
 				if(msg->value){
-					send_note(note_vel, base + 11, 0, handle, port_id);
-					note[2][0] = base + 11;
+					//Envia uma nota MIDI caso pressionado
+					if(comandos[2]){				
+						send_note(note_vel, base + 11, ch, handle, port_id);
+						send_note(note_vel, base + 11 + 4, ch, handle, port_id);
+						send_note(note_vel, base + 11 + 7, ch, handle, port_id);
+						note[2][0] = base + 11;
+						note[2][1] = 0;
+						note[2][2] = ch;
+					}else{
+						send_note(note_vel, base + 11, ch, handle, port_id);
+						note[2][0] = base + 11;
+						note[2][1] = -1;
+						note[2][2] = ch;
+					}
 				}else{
-					send_note(0, note[2][0], 0, handle, port_id);
+					//Envia um NOTEOFF para a ultima nota MIDI acionada
+					if(note[2][1] == -1){
+						send_note(0, note[2][0], note[2][2], handle, port_id);
+					}
+					if(note[2][1] == 0){
+						send_note(0, note[2][0], note[2][2], handle, port_id);
+						send_note(0, note[2][0] + 4, note[2][2], handle, port_id);
+						send_note(0, note[2][0] + 7, note[2][2], handle, port_id);
+					}
 				}
 			break;
 			case 3:
 				//Quadrado
 				if(msg->value){
-					send_note(note_vel, base + 7, 0, handle, port_id);
-					note[3][0] = base + 7;
+					//Envia uma nota MIDI caso pressionado
+					if(comandos[2]){				
+						send_note(note_vel, base + 7, ch, handle, port_id);
+						send_note(note_vel, base + 7 + 4, ch, handle, port_id);
+						send_note(note_vel, base + 7 + 7, ch, handle, port_id);
+						note[3][0] = base + 7;
+						note[3][1] = 0;
+						note[3][2] = ch;
+					}else{
+						send_note(note_vel, base + 7, ch, handle, port_id);
+						note[3][0] = base + 7;
+						note[3][1] = -1;
+						note[3][2] = ch;
+					}
 				}else{
-					send_note(0, note[3][0], 0, handle, port_id);
+					//Envia um NOTEOFF para a ultima nota MIDI acionada
+					if(note[3][1] == -1){
+						send_note(0, note[3][0], note[3][2], handle, port_id);
+					}
+					if(note[3][1] == 0){
+						send_note(0, note[3][0], note[3][2], handle, port_id);
+						send_note(0, note[3][0] + 4, note[3][2], handle, port_id);
+						send_note(0, note[3][0] + 7, note[3][2], handle, port_id);
+					}
 				}
 			break;
 			case 4:
 				//L2
 				if(msg->value){
-					send_note(note_vel, base, 0, handle, port_id);
-					note[4][0] = base;
+					//Envia uma nota MIDI caso pressionado
+					if(comandos[2]){				
+						send_note(note_vel, base, ch, handle, port_id);
+						send_note(note_vel, base + 4, ch, handle, port_id);
+						send_note(note_vel, base + 7, ch, handle, port_id);
+						note[4][0] = base;
+						note[4][1] = 0;
+						note[4][2] = ch;
+					}else{
+						send_note(note_vel, base, ch, handle, port_id);
+						note[4][0] = base;
+						note[4][1] = -1;
+						note[4][2] = ch;
+					}
 				}else{
-					send_note(0, note[4][0], 0, handle, port_id);
+					//Envia um NOTEOFF para a ultima nota MIDI acionada
+					if(note[4][1] == -1){
+						send_note(0, note[4][0], note[4][2], handle, port_id);
+					}
+					if(note[4][1] == 0){
+						send_note(0, note[4][0], note[4][2], handle, port_id);
+						send_note(0, note[4][0] + 4, note[4][2], handle, port_id);
+						send_note(0, note[4][0] + 7, note[4][2], handle, port_id);
+					}
 				}
 			break;
 			case 5:
 				//R2
 				if(msg->value){
-					send_note(note_vel, base + 2, 0, handle, port_id);
-					note[5][0] = base + 2;
+					//Envia uma nota MIDI caso pressionado
+					if(comandos[2]){				
+						send_note(note_vel, base + 2, ch, handle, port_id);
+						send_note(note_vel, base + 2 + 4, ch, handle, port_id);
+						send_note(note_vel, base + 2 + 7, ch, handle, port_id);
+						note[5][0] = base + 2;
+						note[5][1] = 0;
+						note[5][2] = ch;
+					}else{
+						send_note(note_vel, base + 2, ch, handle, port_id);
+						note[5][0] = base + 2;
+						note[5][1] = -1;
+						note[5][2] = ch;
+					}
 				}else{
-					send_note(0, note[5][0], 0, handle, port_id);
+					//Envia um NOTEOFF para a ultima nota MIDI acionada
+					if(note[5][1] == -1){
+						send_note(0, note[5][0], note[5][2], handle, port_id);
+					}
+					if(note[5][1] == 0){
+						send_note(0, note[5][0], note[5][2], handle, port_id);
+						send_note(0, note[5][0] + 4, note[5][2], handle, port_id);
+						send_note(0, note[5][0] + 7, note[5][2], handle, port_id);
+					}
 				}
 			break;
 			case 6:
 				//L1
 				if(msg->value){
-					send_note(note_vel, base + 4, 0, handle, port_id);
-					note[6][0] = base + 4;
+					//Envia uma nota MIDI caso pressionado
+					if(comandos[2]){				
+						send_note(note_vel, base + 4, ch, handle, port_id);
+						send_note(note_vel, base + 4 + 4, ch, handle, port_id);
+						send_note(note_vel, base + 4 + 7, ch, handle, port_id);
+						note[6][0] = base + 4;
+						note[6][1] = 0;
+						note[6][2] = ch;
+					}else{
+						send_note(note_vel, base + 4, ch, handle, port_id);
+						note[6][0] = base + 4;
+						note[6][1] = -1;
+						note[6][2] = ch;
+					}
 				}else{
-					send_note(0, note[6][0], 0, handle, port_id);
+					//Envia um NOTEOFF para a ultima nota MIDI acionada
+					if(note[6][1] == -1){
+						send_note(0, note[6][0], note[6][2], handle, port_id);
+					}
+					if(note[6][1] == 0){
+						send_note(0, note[6][0], note[6][2], handle, port_id);
+						send_note(0, note[6][0] + 4, note[6][2], handle, port_id);
+						send_note(0, note[6][0] + 7, note[6][2], handle, port_id);
+					}
 				}
 			break;
 			case 7:
 				//R1
 				if(msg->value){
-					send_note(note_vel, base + 5, 0, handle, port_id);
-					note[7][0] = base + 5;
+					//Envia uma nota MIDI caso pressionado
+					if(comandos[2]){				
+						send_note(note_vel, base + 5, ch, handle, port_id);
+						send_note(note_vel, base + 5 + 4, ch, handle, port_id);
+						send_note(note_vel, base + 5 + 7, ch, handle, port_id);
+						note[7][0] = base + 5;
+						note[7][1] = 0;
+						note[7][2] = ch;
+					}else{
+						send_note(note_vel, base + 5, ch, handle, port_id);
+						note[7][0] = base + 5;
+						note[7][1] = -1;
+						note[7][2] = ch;
+					}
 				}else{
-					send_note(0, note[7][0], 0, handle, port_id);
+					//Envia um NOTEOFF para a ultima nota MIDI acionada
+					if(note[7][1] == -1){
+						send_note(0, note[7][0], note[7][2], handle, port_id);
+					}
+					if(note[7][1] == 0){
+						send_note(0, note[7][0], note[7][2], handle, port_id);
+						send_note(0, note[7][0] + 4, note[7][2], handle, port_id);
+						send_note(0, note[7][0] + 7, note[7][2], handle, port_id);
+					}
 				}
 			break;
 			case 8:
@@ -232,11 +399,12 @@ void joystick_callback(t_mosaic_button_event *msg){
 			break;
 		}
 		for(i = 0; i < comandos[c_qtd + 8]; i++){
-		base--;
+			base--;
 		}
 		for(i = 0; i < comandos[c_qtd + 6]; i++){
 			base++;
 		}
+		ch = 0;
 	}else if(msg->type == JS_EVENT_AXIS){
 		aux = -1;
 		if(comandos[c_qtd + 5]){
@@ -427,9 +595,6 @@ void joystick_callback(t_mosaic_button_event *msg){
 			break;
 		}
 	}
-	for(i = 0; i < 20; i++){
-		comandos[i] = 0;
-	}
 }
 
 int main(){
@@ -440,14 +605,16 @@ int main(){
 	R3toggle = 0;
 	axis_x = 0;
 	axis_y = 1;
+	ch = 0;
 	rotation = 0;
 	//Inicialização do vetor de notas disparadas
 	//Este vetor é usado para dar NOTEOFF nas notas corretas
 	note = (char**)malloc(8 * sizeof(char*));
 	for(i = 0; i < 8; i++){
-		note[i] = (char*)malloc(2 * sizeof(char));
+		note[i] = (char*)malloc(3 * sizeof(char));
 		note[i][0] = 0;
 		note[i][1] = -1;
+		note[i][2] = 0;
 	}
 	//Inicialização do vetor de comandos reconhecidos e do vetor de combos reconhecíveis
 	comandos = (int*)malloc(20 * sizeof(int));

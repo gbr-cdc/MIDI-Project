@@ -10,6 +10,7 @@
 
 //Estrutura que encapsula o evento gerado por acionar a manete
 typedef struct{
+	int chain;
 	char* combo; //String de como caso esxista uma, NULL caso contrário
 	int* axis; //Vetor dos estados atuais dos eixos da manete
 	int* buttons; //Vetor dos estados atuais dos botões da manete
@@ -111,7 +112,6 @@ void *joystick_thread(void *data){
 	ccount = 0;
 	time = 0;
 	buttons_pressed = 0;
-	chain = 0;
 	//O laço abaixo faz o tratamento dos eventos verdadeiros	
 	while(1) {
 		if(read(fd, &msg, sizeof(struct js_event)) != sizeof(struct js_event)){
@@ -171,12 +171,13 @@ void *joystick_thread(void *data){
 				cbuffer[ccount] = '\0';
 				btn_event->combo = cbuffer;
 				ccount = 0;
-				chain = 1;
 			}else{
 				//Se o botão for pressionado logo após outro e houver um combo desencadeado, ele também receberá o combo
-				if(((msg.time - time) < 200) && chain && (msg.value == 1)) btn_event->combo = cbuffer;
-				else chain = 0;
+				//if(((msg.time - time) < 200) && chain && (msg.value == 1)) btn_event->combo = cbuffer;
+				//else chain = 0;
 			}
+			if(((msg.time - time) < 500)) btn_event->chain = 1;
+			else btn_event->chain = 0;
 		}
 		if(msg.type == JS_EVENT_AXIS){
 			if(msg.number == 2 || msg.number == 3){
